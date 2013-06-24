@@ -1,0 +1,5 @@
+This is the first presentation created with Rhet Butler.
+
+I'm archiving it for historical interest and as a first demo.
+
+You can check it out by `gem install rhet-butler` and then `rhet-butler serve`

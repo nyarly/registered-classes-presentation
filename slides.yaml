@@ -1,0 +1,413 @@
+---
+- !group
+  - !group
+    - !slide
+      title: presentation_intro
+      content: |
+        Class Registry: A Ruby Design Pattern
+  - !group
+    - !slide
+      title: whoami
+      content: |
+        Judson Lester
+        Logical Reality Design
+    - !slide |
+      @judsonlester
+    - !slide |
+      github.com/nyarly
+    - !slide |
+      !madhelm.png!
+
+- !group
+  - !group
+    - !slide
+      Design Patterns
+    - !slide
+      content: |
+        !assets/gof-book.jpg!
+      notes: |
+        GoF are: Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides
+    - !slide
+      content: |
+        The Group of Four format
+    - !slide
+      content: |
+        Intent
+        Also Known As
+        Motivation
+        Applicability
+        Structure
+        Participants
+        Collaborations
+        Consequences
+        Implementation
+        Sample Code
+
+    - !slide
+      content: |
+        (Intent)
+        (Also Known As)
+        Motivation
+        (Applicability)
+        Structure
+        (Participants)
+        (Collaborations)
+        (Consequences)
+        Implementation
+        (Sample Code)
+      notes: |
+        That's alot of headings for a presentation
+
+    - !slide |
+      Motivation
+      Structure
+      Implementation
+
+    - !slide
+      content: Motivation
+      notes: |
+        Why would I want to use this pattern?
+        What sort of problems should make me think of it?
+        What sort of problems is it *not* appropriate for?
+    - !slide
+      content: Structure
+      notes: |
+        What's in the pattern?
+        What objects participate in it?
+        How do they interact?
+    - !slide
+      content: Implementation
+      notes: |
+        What should I look out for while building this?
+        What gotchas there?
+        What should I consider in making decisions about using this pattern?
+  - !group
+    - !slide
+      content: |
+        The Class Registry Pattern
+      notes: |
+        Okay, so let's talk about a concrete example
+    - !group
+      - !slide
+        content: |
+          Motivation
+        notes: |
+          for Class Registry (next slides)
+      - !slide
+        content: Decoupled classes
+        notes: |
+          You can use Class Registry any time you have a series of related classes that
+          should be selected from based on something other than their Ruby class name.
+      - !slide
+        content: Outside data
+        notes: |
+          Because the class will be chosen based on a string from something outside your
+          application (string, network, database)
+      - !slide
+        type: code:yaml
+        content: |
+          - !slide
+            type: code:yaml
+            content: ...
+        notes: |
+          "code:yaml" refers to a class that formats slides "CodeRenderer"
+      - !slide
+        content: Anonymous components
+        notes: |
+          Because the classes will be cycled through, or all applied and their results
+          compared
+      - !slide
+        content: Random choice
+        notes: |
+          Because the class will be chosen at random
+      - !slide
+        content: |
+          Extension
+        notes: |
+          You'd like to be add or replace classes in the future
+      - !slide
+        content: |
+          Use Case: Interpreter
+        notes: |
+          Different node types registered, and the parser generator can just emit types/s-exprs
+      - !slide
+        type: code:ruby
+        content: |
+          #x = 1 + 1
+          [:let, [:lval, x], [[:op, :+], [:litval, 1], [:litval, 1]]]
+    - !group
+      - !slide
+        content: |
+          Structure
+        notes: |
+          Moving on to the next section: the pattern structure
+      - !slide
+        content: |
+          Registry Itself
+        notes: |
+          Let start with an example
+      - !slide
+        type: code:ruby
+        content: |
+          class ClassRegistry
+            def initialize
+              @classes = {}
+            end
+
+            def register(name, klass)
+              @classes[name.to_s] = klass
+            end
+
+            def lookup(name)
+              @classes.fetch(name.to_s)
+            end
+          end
+      - !slide
+        Registered class family
+      - !slide
+        type: code:ruby
+        content: |
+          class SlideRenderer
+            def self.registry
+              @registry ||= ClassRegistry.new
+            end
+
+            def self.register(name)
+              SlideRenderer.registry.register(name, self)
+            end
+
+            def self.for_type(name)
+              SlideRenderer.registry.fetch(name)
+            end
+          end
+        notes: |
+          One gotcha from Ruby is that either the registry is a class var, or
+          self.register has to refer to the parent class
+      - !slide
+        Registered class
+      - !slide
+        type: code:ruby
+        content: |
+          class TextileRenderer < SlideRenderer
+            register :textile
+            register :texttile
+
+            def process(string)
+              RedCloth.new(string).to_html
+            end
+          end
+        notes: |
+          Classes that intend to register themselves call register(name, self), and we
+          add the class to a dictionary - a Hash. Now we can look up classes by name or
+          iterate over the classes or whatever.
+      - !slide
+        Four participants
+      - !slide
+        Registry
+      - !slide
+        Registered classes
+      - !slide
+        content: Registry host
+        notes: |
+          Since it's often convenient for this to be a Singleton (also a
+          pattern), often this is a class, but it could (shudder to think) be
+          a kept in a global variable, or (better still) passed in as part of
+          a dependency injection scheme
+      - !slide
+        Registry clients
+    - !group
+      - !slide
+        content: |
+          Implementation
+        notes: |
+          implementation concerns and notes
+      - !group
+        - !slide
+          Hash as Registry
+        - !slide
+          type: code:ruby
+          content: |
+            class Parent
+              def self.registry
+                @registry ||= {}
+              end
+
+              def self.register(name)
+                Parent.registry[name] = self
+              end
+            end
+          notes: |
+            Simpler, but harder to change things later. Registry as a class
+            also allows for simple correctness assertions and reuse
+      - !group
+        - !slide
+          content: |
+            Registry host
+          notes: |
+            There are a number of options...
+        - !slide
+          Global
+        - !slide
+          type: code:ruby
+          content: |
+            $REGISTERED_NIFTIES = NiftyRegistry.new
+          notes: |
+            Ugh
+        - !slide
+          -Global-
+        - !slide
+          Singleton on superclass
+        - !slide
+          content: |
+            Singleton elsewhere
+          notes: |
+            Especially if used exclusively by one other class, hosting the registry there can be convenient
+        - !slide
+          type: code:ruby
+          content: |
+            def self.register(name)
+              OtherClass.register(name, self)
+            end
+          notes: |
+            This is pretty simple to do
+        - !slide
+          Instance passed to clients
+        - !slide
+          type: code:ruby
+          content: |
+            slide_presenter.renderer_registry = build_registry()
+          notes: |
+            Makes testing much easier, since you can stash mocks in there
+            On the other hand, you have to arrange registration elsewhere, etc.
+      - !group
+        - !slide
+          content: Magic registration
+          notes: |
+            It's possible to hook into Ruby's ::inherited method, something
+            like this next slide
+        - !slide
+          type: code:ruby
+          content: |
+            class RegistrationParent
+              def self.inherited(sub)
+                register(sub.name.downcase, sub)
+              end
+            end
+        - !slide
+          content: I suppose...
+          notes: |
+            I'd advise against this, for several reasons.  If you're
+            iterating classes, you now have to decide if you want any
+            "abstract" super classes - if so then you need to do this:
+        - !slide
+          type: code:ruby
+          content: |
+            class RegistrationParent
+              def self.inherited(sub)
+                register(sub.name.downcase, sub)
+                sub.ancestors.each do |mod|
+                  registry.unregister(mod)
+                end
+              end
+            end
+          notes: |
+            You also need Registry.unregister(mod)
+      - !slide
+        content: Fail slow
+        notes: |
+          Most particularly, I like code to fail quickly, and close to the
+          cause of the failure. Using inherited, a change to the name of a
+          class will change the key the class is registered as (you've lost
+          the de-coupled property.)
+      - !slide
+        type: code:ruby
+        content: |
+          #class OldBustedName < RegistrationParent
+          class NewShinyName < RegistrationParent
+          end
+
+          #in a galaxy far away...
+          RegistrationParent.for_type(parsed_input) #=> no such key "oldbustedname" - wtf?
+  - !group
+    - !slide
+      content: |
+        About Design Patterns
+      notes: |
+        I want to finish up by talking at a higher level about DP in general
+    - !group
+      - !slide
+        content: |
+          Design Patterns in Ruby
+        notes: |
+          I don't think DP get enough discussion in Ruby-land
+      - !slide
+        content: |
+          ... versus Java
+        notes: |
+          Probably because of how much they get used in Java
+      - !slide |
+        !assets/enterprise-java.jpg!
+      - !slide
+        content: |
+          Constructor Patterns
+        notes: |
+          Java needs lots and complicated constructor patterns
+      - !slide
+        content: |
+          FactoryObject
+        notes: |
+          ha ha AbstractAbstractClassFactoryFactory
+      - !slide |
+        FactoryObject in Ruby:
+      - !slide
+        content: |
+          Class
+        notes: |
+          is just Class
+          Java's parameterization
+          also: the GoF AbstractFactory is about related objects more than being
+          able to parameterize classes
+    - !group
+      - !slide
+        content: |
+          Powerful design paradigm
+        notes: |
+          Bryan Helmkamp's 7 object patterns for Rails
+      - !slide
+        Shortcut to Finished
+      - !slide
+        content: |
+          Shortcut to Comprehension
+        notes: |
+          "Oh, that's just a Visitor"
+      - !slide
+        content: |
+          JUnit Docs
+        notes: |
+          Uses pattern approach to explain design
+          Also: Test::Unit based on JUnit, so...
+      - !slide
+        Be Wary
+      - !slide
+        content: |
+          MementoObserverStateCommandVisitor
+        notes: |
+          aka, the Pattern is the not solution
+    - !group
+      - !slide
+        Design Pattern
+        vs.
+        Library
+      - !slide
+        Libraries aren't reuseable across languages
+      - !slide
+        content: |
+          Pattern implementations overlap and compose with each other
+        notes: |
+          Be suspicious "pattern implementation libraries"
+- !group
+  - !slide
+    content: |
+      ~ fin ~
+    notes: |
+      Thank you for your attention. Can I answer any questions?
